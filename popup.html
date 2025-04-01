@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Deep Extension</title>
+    <link rel="stylesheet" type="text/css" href="popup.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="paste-section">
+            <h3><i class="fas fa-paste"></i> Paste Your Code</h3>
+            
+            <div class="code-editor-container">
+                <textarea id="pasteInput" placeholder="Paste your code here to insert into the editor..." spellcheck="false"></textarea>
+            </div>
+            
+            <div id="pasteFeedback" class="paste-feedback">
+                <i class="fas fa-check-circle"></i>
+                <span id="feedbackMessage">Content pasted successfully!</span>
+            </div>
+            
+            <div class="button-group">
+                <button id="solveBtn" class="btn"><i class="fas fa-magic"></i> Solve</button>
+                <button id="hintBtn" class="btn"><i class="fas fa-lightbulb"></i> Hint</button>
+                <button id="pasteEndBtn" class="btn"><i class="fas fa-paste"></i> Paste</button>
+            </div>
+        </div>
+        
+        <!-- Hint Response Section -->
+        <div class="hint-section" style="display: none;">
+            <div class="stage">
+                <div class="stage-header">
+                    <i class="fas fa-lightbulb"></i> Hint
+                    <button class="expand-btn" title="View fullscreen"><i class="fas fa-expand-alt"></i></button>
+                </div>
+                <div id="hintResponse" class="stage-content">
+                    <!-- Hint content will be displayed here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="stages">
+            <div class="stage">
+                <div class="stage-header"><i class="fas fa-file-code"></i> Extracted Test Case</div>
+                <div id="extractedContent" class="stage-content"></div>
+            </div>
+            <div class="stage">
+                <div class="stage-header"><i class="fas fa-code"></i> Solution</div>
+                <div id="apiResponse" class="stage-content"></div>
+            </div>
+            <div class="stage">
+                <div class="stage-header"><i class="fas fa-info-circle"></i> Status</div>
+                <div id="finalStatus" class="stage-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Hint Overlay -->
+    <div id="fullscreenHintOverlay" class="fullscreen-overlay">
+        <div class="fullscreen-content">
+            <button id="closeFullscreenBtn" class="close-btn"><i class="fas fa-times"></i></button>
+            <div class="fullscreen-header">
+                <i class="fas fa-lightbulb"></i> Hint (Fullscreen)
+            </div>
+            <div id="fullscreenHintContent" class="fullscreen-body"></div>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

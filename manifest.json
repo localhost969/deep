@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Deep Code Extension",
+  "version": "1.0",
+  "description": "Extract, send to API, and inject code into ACE editor",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://vrdn-ai.89determined.workers.dev/",
+    "*://kmeconline.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Deep Code Extension",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    
+  }
+}
