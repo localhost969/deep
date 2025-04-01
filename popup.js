@@ -245,8 +245,168 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('fullscreenHintOverlay').style.display = 'flex';
     });
 
+    // Function to move cursor to end of editor - enhanced for document end
+    const moveCursorToEnd = async () => {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab) return;
+            
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: () => {
+                    try {
+                        // Function to get the last line number of a document
+                        const getLastLineNumber = (editor) => {
+                            if (editor && editor.session) {
+                                return editor.session.getLength() - 1;
+                            }
+                            return 0;
+                        };
+
+                        // Force end of document for Ace editor
+                        const forceEndOfDocument = (editor) => {
+                            if (!editor) return false;
+                            
+                            try {
+                                // Get document length
+                                const lastLineNum = getLastLineNumber(editor);
+                                const lastLineLength = editor.session.getLine(lastLineNum).length;
+                                
+                                // Position cursor at the very end of the last line
+                                editor.gotoLine(lastLineNum + 1, lastLineLength, true);
+                                editor.focus();
+                                
+                                // Alternative method: first go to last line then to end
+                                setTimeout(() => {
+                                    editor.navigateFileEnd();
+                                    editor.focus();
+                                }, 50);
+                                
+                                return true;
+                            } catch (e) {
+                                console.error("Force end error:", e);
+                                return false;
+                            }
+                        };
+
+                        // Approach 1: Standard Ace Editor with enhanced positioning
+                        const aceEditors = document.querySelectorAll('.ace_editor');
+                        for (const editor of aceEditors) {
+                            if (window.ace) {
+                                try {
+                                    const aceEditor = window.ace.edit(editor.id || editor);
+                                    if (aceEditor) {
+                                        // Use our enhanced end of document function
+                                        if (forceEndOfDocument(aceEditor)) {
+                                            console.log('Success: Placed cursor at document end');
+                                            return true;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.log('Failed enhanced Ace approach:', e);
+                                }
+                            }
+                        }
+                        
+                        // Approach 2: VPL specific with complete document navigation
+                        const vplFiles = document.querySelectorAll('.vpl_ide_file');
+                        for (const file of vplFiles) {
+                            if (window.ace) {
+                                try {
+                                    const aceEditor = window.ace.edit(file.id || file);
+                                    // Use enhanced method
+                                    if (forceEndOfDocument(aceEditor)) {
+                                        console.log('Success: VPL file cursor at document end');
+                                        return true;
+                                    }
+                                } catch (e) {
+                                    console.log('Failed VPL enhanced approach:', e);
+                                }
+                            }
+                        }
+
+                        // Approach 3: Global ACE with aggressive positioning
+                        if (window.ace) {
+                            // Look for any ace editor instance
+                            const editorInstances = Object.keys(window)
+                                .filter(key => typeof window[key] === 'object' && window[key] && window[key].session)
+                                .map(key => window[key]);
+                            
+                            for (const editor of editorInstances) {
+                                try {
+                                    if (editor && typeof editor.navigateFileEnd === 'function') {
+                                        // Use the enhanced method
+                                        if (forceEndOfDocument(editor)) {
+                                            console.log('Success: Global editor cursor at document end');
+                                            return true;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.log('Failed global editor enhanced approach:', e);
+                                }
+                            }
+                        }
+                        
+                        // Approach 4: Aggressive keyboard simulation
+                        const editorInput = document.querySelector('.ace_text-input');
+                        if (editorInput) {
+                            try {
+                                editorInput.focus();
+                                
+                                // Simulate Ctrl+End to go to end of document
+                                const ctrlEndEvent = new KeyboardEvent('keydown', {
+                                    key: 'End',
+                                    code: 'End',
+                                    keyCode: 35,
+                                    which: 35,
+                                    ctrlKey: true,
+                                    bubbles: true
+                                });
+                                editorInput.dispatchEvent(ctrlEndEvent);
+                                
+                                // Fallback - hit End key multiple times and down arrow
+                                setTimeout(() => {
+                                    // Press End key
+                                    const endEvent = new KeyboardEvent('keydown', {
+                                        key: 'End',
+                                        code: 'End',
+                                        keyCode: 35,
+                                        which: 35,
+                                        bubbles: true
+                                    });
+                                    
+                                    // Press multiple times to ensure we get to end
+                                    for (let i = 0; i < 3; i++) {
+                                        editorInput.dispatchEvent(endEvent);
+                                    }
+                                    
+                                    console.log('Success: Simulated End key sequence for document end');
+                                }, 100);
+                                
+                                return true;
+                            } catch (e) {
+                                console.log('Failed keyboard simulation:', e);
+                            }
+                        }
+                        
+                        console.log('No successful method found to move cursor to document end');
+                        return false;
+                    } catch (e) {
+                        console.error('Move cursor to document end error:', e);
+                        return false;
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Move cursor to end error:', error);
+        }
+    };
+
     // Load stored state when popup opens
     loadStoredState();
+    
+    // Move cursor to end of editor when popup opens
+    moveCursorToEnd();
     
     // Add a listener for when input changes to save state
     pasteInput.addEventListener('input', saveState);
