@@ -5,10 +5,19 @@
     <link rel="stylesheet" type="text/css" href="popup.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
-<body>
+<body class="mono-ui">
     <div class="container">
         <div class="paste-section">
             <h3><i class="fas fa-paste"></i> Paste Your Code</h3>
+            
+            <!-- New language selection dropdown -->
+            <div class="language-selector">
+                <label for="languageSelect">Select Language:</label>
+                <select id="languageSelect" class="btn">
+                    <option value="java">Java</option>
+                    <option value="python">Python</option>
+                </select>
+            </div>
             
             <div class="code-editor-container">
                 <textarea id="pasteInput" placeholder="Paste your code here to insert into the editor..." spellcheck="false"></textarea>
@@ -45,13 +54,8 @@
                 <div id="extractedContent" class="stage-content"></div>
             </div>
             
-            <!-- Notice placed between stages, not inside any stage -->
-            <div id="versionNotice" style="background-color: #fff3e0; border-left: 4px solid #e67e22; padding: 8px 12px; margin: 15px 0; border-radius: 4px;">
-                <p style="margin: 0; color: #e67e22; font-weight: bold;">
-                    <i class="fas fa-exclamation-circle"></i> Note: Currently its giving two versions of answers for each question, so modify it accordingly.
-                </p>
-            </div>
-            
+           
+
             <div class="stage">
                 <div class="stage-header"><i class="fas fa-code"></i> Solution</div>
                 <div class="stage-content">
@@ -71,39 +75,24 @@
         <div class="fullscreen-content">
             <button id="closeFullscreenBtn" class="close-btn"><i class="fas fa-times"></i></button>
             <div class="fullscreen-header">
-                <i class="fas fa-lightbulb"></i> Hint (Fullscreen)
+                <i class="fas fa-lightbulb"></i> Hint
             </div>
             <div id="fullscreenHintContent" class="fullscreen-body"></div>
         </div>
     </div>
     
-    <!-- Professional Fixed Footer - Redesigned -->
-    <footer style="position: fixed; bottom: 0; left: 0; right: 0; width: 100%; box-sizing: border-box; background: linear-gradient(135deg, #1a2a3a, #2c3e50); color: #ffffff; padding: 8px 0; text-align: center; font-size: 13px; border-top: 2px solid #3498db; box-shadow: 0 -3px 10px rgba(0,0,0,0.15); z-index: 1000;">
-        <div style="display: flex; justify-content: center; align-items: center; flex-wrap: nowrap;">
-            <div style="display: flex; align-items: center; background: rgba(52, 152, 219, 0.2); padding: 3px 12px; border-radius: 20px; margin: 0 10px;">
-                <span style="font-weight: 500; letter-spacing: 0.5px;">Designed by Vardan</span>
-            </div>
-            <div style="display: flex; gap: 12px; margin-left: 10px;">
-                <a href="https://github.com/localhost969" target="_blank" style="color: #ffffff; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: rgba(255,255,255,0.1); border-radius: 50%; transition: all 0.3s ease;">
-                    <i class="fab fa-github"></i>
-                </a>
-                <a href="https://instagram.com/vardn.20" target="_blank" style="color: #ffffff; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: rgba(255,255,255,0.1); border-radius: 50%; transition: all 0.3s ease;">
-                    <i class="fab fa-instagram"></i>
-                </a>
-                <a href="https://www.ngit24.me" target="_blank" style="color: #ffffff; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: rgba(255,255,255,0.1); border-radius: 50%; transition: all 0.3s ease;">
-                    <i class="fas fa-globe"></i>
-                </a>
-            </div>
+    <!-- Monochrome footer (replaces inline-styled footer) -->
+    <footer class="app-footer">
+        <div class="credit">Designed by Vardan</div>
+        <div class="social">
+            <a href="https://github.com/localhost969" target="_blank" class="icon-btn" aria-label="GitHub">
+                <i class="fab fa-github"></i>
+            </a>
         </div>
     </footer>
-    
-    <!-- Add padding at the bottom of container to prevent content from being hidden behind footer -->
-    <style>
-        .container {
-            padding-bottom: 40px;
-        }
-    </style>
-    
+
     <script src="popup.js"></script>
+</body>
+</html>
 </body>
 </html>

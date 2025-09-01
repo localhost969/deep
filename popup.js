@@ -17,23 +17,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const fullscreenHintContent = document.getElementById('fullscreenHintContent');
     const closeFullscreenBtn = document.getElementById('closeFullscreenBtn');
 
+    // New language selector element
+    const languageSelect = document.getElementById('languageSelect');
+
     // Load stored state on popup open
     const loadStoredState = () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const currentUrl = tabs[0]?.url || '';
             const currentPageIdentifier = getPageIdentifier(currentUrl);
-            
+
             // Only load state if we have a valid URL
             if (currentPageIdentifier) {
                 chrome.storage.local.get([currentPageIdentifier], (result) => {
                     const storedState = result[currentPageIdentifier];
-                    
+
                     if (storedState) {
                         // Restore paste input
                         if (storedState.pasteInput) {
                             pasteInput.value = storedState.pasteInput;
                         }
-                        
+
                         // Restore hint section
                         if (storedState.hintVisible && storedState.hintContent) {
                             hintSection.style.display = 'block';
@@ -41,24 +44,31 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             hintSection.style.display = 'none';
                         }
-                        
+
                         // Restore stages section
                         if (storedState.stagesVisible) {
                             stagesContainer.classList.add('visible');
-                            
+
                             if (storedState.extractedContent) {
                                 extractedContent.textContent = storedState.extractedContent;
                             }
-                            
+
                             if (storedState.apiResponse) {
                                 apiResponse.textContent = storedState.apiResponse;
                             }
-                            
+
                             if (storedState.finalStatus) {
                                 finalStatus.textContent = storedState.finalStatus;
                             }
                         } else {
                             stagesContainer.classList.remove('visible');
+                        }
+
+                        // Restore language selection
+                        if (storedState.language) {
+                            languageSelect.value = storedState.language;
+                        } else {
+                            languageSelect.value = 'python'; // Default
                         }
                     } else {
                         // No stored state for this page, initialize empty
@@ -77,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const currentUrl = tabs[0]?.url || '';
             const currentPageIdentifier = getPageIdentifier(currentUrl);
-            
+
             // Only save if we have a valid URL
             if (currentPageIdentifier) {
                 const state = {
@@ -88,9 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     extractedContent: extractedContent.textContent,
                     apiResponse: apiResponse.textContent,
                     finalStatus: finalStatus.textContent,
+                    language: languageSelect.value,
                     timestamp: Date.now() // Add timestamp for potential cleanup later
                 };
-                
+
                 // Store using the page identifier as the key
                 const stateObj = {};
                 stateObj[currentPageIdentifier] = state;
@@ -103,26 +114,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // This creates a more specific identifier than just the URL
     const getPageIdentifier = (url) => {
         if (!url) return null;
-        
+
         try {
             const urlObj = new URL(url);
             // Create a unique key based on hostname, pathname and any identifiers in the query string
             // This ensures different problems/assignments get different storage
             const pathKey = urlObj.pathname.replace(/\//g, '_');
-            
+
             // If there are query parameters that identify the specific problem, include those
-            const problemId = urlObj.searchParams.get('problem') || 
-                              urlObj.searchParams.get('id') || 
-                              urlObj.searchParams.get('assignment');
-            
+            const problemId = urlObj.searchParams.get('problem') ||
+                urlObj.searchParams.get('id') ||
+                urlObj.searchParams.get('assignment');
+
             // Combine hostname and path for a unique identifier
             let pageKey = `page_${urlObj.hostname}${pathKey}`;
-            
+
             // If there's a problem ID, make the key even more specific
             if (problemId) {
                 pageKey += `_${problemId}`;
             }
-            
+
             return pageKey;
         } catch (e) {
             console.error('Error parsing URL:', e);
@@ -144,10 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to show paste feedback
     const showPasteFeedback = (message, isSuccess) => {
         feedbackMessage.textContent = message;
-        
+
         // First remove any existing classes
         pasteFeedback.classList.remove('success', 'error');
-        
+
         // Update icon and add appropriate class
         const iconElement = pasteFeedback.querySelector('i');
         if (isSuccess) {
@@ -157,10 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
             pasteFeedback.classList.add('error');
             iconElement.className = 'fas fa-exclamation-circle';
         }
-        
+
         // Show feedback
         pasteFeedback.style.display = 'flex';
-        
+
         // Hide feedback after 3 seconds
         setTimeout(() => {
             pasteFeedback.style.display = 'none';
@@ -172,42 +183,68 @@ document.addEventListener('DOMContentLoaded', () => {
             target: { tabId: tab.id },
             func: (solution) => {
                 try {
-                    const editors = document.querySelectorAll('.ace_editor');
-                    for (const editor of editors) {
-                        if (editor.id && window.ace) {
-                            const aceEditor = window.ace.edit(editor.id);
-                            if (aceEditor && typeof aceEditor.setValue === 'function') {
-                                // Move cursor to end and insert the new content
-                                aceEditor.navigateFileEnd();
-                                aceEditor.insert('\n\n' + solution);
-                                aceEditor.clearSelection();
-                                return true;
+                    let injected = false;
+
+                    // Try to find any Ace editor and inject only ONCE
+                    if (window.ace) {
+                        // First try VPL-specific editors - but stop after first success
+                        const vplFiles = document.querySelectorAll('.vpl_ide_file');
+                        for (const file of vplFiles) {
+                            if (injected) break; // Already injected, exit loop
+                            try {
+                                const aceEditor = window.ace.edit(file.id || file);
+                                if (aceEditor && typeof aceEditor.setValue === 'function') {
+                                    const currentValue = aceEditor.getValue();
+                                    aceEditor.setValue(currentValue + '\n\n' + solution);
+                                    aceEditor.clearSelection();
+                                    injected = true;
+                                    break; // Exit immediately after first successful injection
+                                }
+                            } catch (e) {
+                                console.log('VPL injection attempt failed:', e);
+                            }
+                        }
+
+                        // If no VPL editor worked, try general ace editors - but only once
+                        if (!injected) {
+                            const aceEditors = document.querySelectorAll('.ace_editor');
+                            for (const editor of aceEditors) {
+                                if (injected) break; // Already injected, exit loop
+                                try {
+                                    const aceEditor = window.ace.edit(editor.id || editor);
+                                    if (aceEditor && typeof aceEditor.setValue === 'function') {
+                                        const currentValue = aceEditor.getValue();
+                                        aceEditor.setValue(currentValue + '\n\n' + solution);
+                                        aceEditor.clearSelection();
+                                        injected = true;
+                                        break; // Exit immediately after first successful injection
+                                    }
+                                } catch (e) {
+                                    console.log('Ace editor injection attempt failed:', e);
+                                }
                             }
                         }
                     }
-                    
-                    // Fallback method if ace editor not found
-                    const editorArea = document.querySelector('.ace_text-input');
-                    if (editorArea) {
-                        const currentContent = editorArea.value || '';
-                        
-                        // Only append if there's existing content
-                        if (currentContent && currentContent.trim().length > 0) {
-                            const newContent = currentContent + '\n\n' + solution;
-                            
-                            // Try to use the proper way to update the Ace editor content
-                            const event = new InputEvent('input', { bubbles: true });
-                            editorArea.value = newContent;
-                            editorArea.dispatchEvent(event);
-                        } else {
-                            editorArea.value = solution;
+
+                    // Fallback to textarea method only if Ace injection failed
+                    if (!injected) {
+                        const editorArea = document.querySelector('.ace_text-input');
+                        if (editorArea) {
+                            const currentContent = editorArea.value || '';
+
+                            if (currentContent && currentContent.trim().length > 0) {
+                                editorArea.value = currentContent + '\n\n' + solution;
+                            } else {
+                                editorArea.value = solution;
+                            }
+
                             const event = new InputEvent('input', { bubbles: true });
                             editorArea.dispatchEvent(event);
+                            injected = true;
                         }
-                        return true;
                     }
-                    
-                    throw new Error('No injection method worked');
+
+                    return injected;
                 } catch (e) {
                     console.error('Injection error:', e);
                     return false;
@@ -234,6 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fullscreenHintOverlay.addEventListener('click', (e) => {
         if (e.target.id === 'fullscreenHintOverlay') {
             fullscreenHintOverlay.style.display = 'none';
+            document.body.style.overflow = 'auto'; // ensure scroll restored
         }
     });
 
@@ -250,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab) return;
-            
+
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 func: () => {
@@ -266,22 +304,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Force end of document for Ace editor
                         const forceEndOfDocument = (editor) => {
                             if (!editor) return false;
-                            
+
                             try {
                                 // Get document length
                                 const lastLineNum = getLastLineNumber(editor);
                                 const lastLineLength = editor.session.getLine(lastLineNum).length;
-                                
+
                                 // Position cursor at the very end of the last line
                                 editor.gotoLine(lastLineNum + 1, lastLineLength, true);
                                 editor.focus();
-                                
+
                                 // Alternative method: first go to last line then to end
                                 setTimeout(() => {
                                     editor.navigateFileEnd();
                                     editor.focus();
                                 }, 50);
-                                
+
                                 return true;
                             } catch (e) {
                                 console.error("Force end error:", e);
@@ -307,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
                         }
-                        
+
                         // Approach 2: VPL specific with complete document navigation
                         const vplFiles = document.querySelectorAll('.vpl_ide_file');
                         for (const file of vplFiles) {
@@ -331,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const editorInstances = Object.keys(window)
                                 .filter(key => typeof window[key] === 'object' && window[key] && window[key].session)
                                 .map(key => window[key]);
-                            
+
                             for (const editor of editorInstances) {
                                 try {
                                     if (editor && typeof editor.navigateFileEnd === 'function') {
@@ -346,13 +384,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
                         }
-                        
+
                         // Approach 4: Aggressive keyboard simulation
                         const editorInput = document.querySelector('.ace_text-input');
                         if (editorInput) {
                             try {
                                 editorInput.focus();
-                                
+
                                 // Simulate Ctrl+End to go to end of document
                                 const ctrlEndEvent = new KeyboardEvent('keydown', {
                                     key: 'End',
@@ -363,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     bubbles: true
                                 });
                                 editorInput.dispatchEvent(ctrlEndEvent);
-                                
+
                                 // Fallback - hit End key multiple times and down arrow
                                 setTimeout(() => {
                                     // Press End key
@@ -374,21 +412,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                         which: 35,
                                         bubbles: true
                                     });
-                                    
+
                                     // Press multiple times to ensure we get to end
                                     for (let i = 0; i < 3; i++) {
                                         editorInput.dispatchEvent(endEvent);
                                     }
-                                    
+
                                     console.log('Success: Simulated End key sequence for document end');
                                 }, 100);
-                                
+
                                 return true;
                             } catch (e) {
                                 console.log('Failed keyboard simulation:', e);
                             }
                         }
-                        
+
                         console.log('No successful method found to move cursor to document end');
                         return false;
                     } catch (e) {
@@ -404,13 +442,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load stored state when popup opens
     loadStoredState();
-    
+
     // Move cursor to end of editor when popup opens
     moveCursorToEnd();
-    
+
     // Add a listener for when input changes to save state
     pasteInput.addEventListener('input', saveState);
-    
+
     // Add button functionality
     hintBtn.addEventListener('click', async () => {
         try {
@@ -461,13 +499,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const payload = {
                 actualQuestion: content,
-                rules: [
-                    "provide only hints with actual code syntaxes only",
-                    "give hint which conecpt is used",
-                    "give him worl flow like first what to do",
-                    "dont use any complex funection unless asked and give resopnse as simple plain text ",
-                    "keep it short and think he is very beginer of python so pls give him in very basic verison"
-                ]
+                language: languageSelect.value,
+                rules: getHintRules(languageSelect.value)
             };
 
             const apiUrl = 'https://deep.89determined.workers.dev/gemini-pro/hint';
@@ -479,16 +512,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!hintApiResponse.ok) throw new Error('Failed to get hint');
             const hintResult = await hintApiResponse.text();
-            
+
             // Clean and display the hint
             const cleanHint = hintResult.replace(/```\w*\n?|```/g, '').trim();
             hintResponse.textContent = cleanHint;
-            
+
             // Automatically show fullscreen hint
             document.getElementById('fullscreenHintContent').innerHTML = cleanHint;
             document.getElementById('fullscreenHintOverlay').style.display = 'flex';
             document.body.style.overflow = 'hidden';
-            
+
             // Save the updated state
             saveState();
 
@@ -500,7 +533,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    pasteEndBtn.addEventListener('click', async () => {
+    // Remove any previous event listener to avoid duplication
+    if (window.pasteEndBtnHandler) {
+        pasteEndBtn.removeEventListener('click', window.pasteEndBtnHandler);
+    }
+
+    // Define handler function and store reference
+    window.pasteEndBtnHandler = async function () {
+        // Disable button to prevent multiple clicks
+        pasteEndBtn.disabled = true;
+        pasteEndBtn.textContent = 'Pasting...';
+
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab) throw new Error('No active tab found');
@@ -512,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const injectionResult = await injectContent(tab, content);
-            
+
             if (injectionResult?.[0]?.result) {
                 showPasteFeedback('Code pasted successfully!', true);
                 pasteInput.value = '';
@@ -525,16 +568,37 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Paste at end error:', error);
             showPasteFeedback(`Error: ${error.message}`, false);
+        } finally {
+            // Re-enable button
+            pasteEndBtn.disabled = false;
+            pasteEndBtn.textContent = 'Paste at End';
         }
-    });
+    };
 
-    solveBtn.addEventListener('click', async () => {
-        // Hide hint section if visible
+    // Attach the new event listener
+    pasteEndBtn.addEventListener('click', window.pasteEndBtnHandler);
+
+    // Add a flag to prevent multiple solve operations
+    let isSolving = false;
+
+    // Remove any previous event listener to avoid duplication
+    if (window.solveBtnHandler) {
+        solveBtn.removeEventListener('click', window.solveBtnHandler);
+    }
+
+    // Define handler function and store reference
+    window.solveBtnHandler = async function () {
+        // Prevent multiple clicks by checking the flag
+        if (isSolving) return;
+
+        isSolving = true;
+        solveBtn.disabled = true;
+        solveBtn.textContent = 'Solving...';
+
         hintSection.style.display = 'none';
+
         try {
-            // Show stages when solve button is clicked
             stagesContainer.classList.add('visible');
-            
             extractedContent.textContent = 'Extracting...';
             apiResponse.textContent = 'Waiting...';
             finalStatus.textContent = 'Waiting...';
@@ -582,14 +646,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const payload = {
                 actualQuestion: content,
-                rules: [
-                    "and mainly just give only one version of the code, never every give multiple codes",
-                    "python code without comments or extra text",
-                    "very easiest simple beginner version",
-                    "no complex functions when not asked",
-                    "normal python without AI syntaxes",
-                    
-                ]
+                language: languageSelect.value,
+                rules: getLanguageRules(languageSelect.value)
             };
 
             const apiUrl = 'https://deep.89determined.workers.dev/gemini-pro';
@@ -598,33 +656,82 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+
             if (!solutionResponse.ok) throw new Error('Solution fetch failed');
             const solutionResult = await solutionResponse.text();
 
-            apiResponse.textContent = 'Getting test cases...';
-            const testCaseResponse = await fetch(apiUrl + 'test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!testCaseResponse.ok) throw new Error('Test case fetch failed');
-            const testCaseResult = await testCaseResponse.text();
-
-            const combinedResult = solutionResult.trim() + '\n\n' + testCaseResult.trim();
-            const cleanResult = combinedResult.replace(/```python\n?|```/g, '');
+            const cleanResult = solutionResult.replace(new RegExp(`\`\`\`${languageSelect.value}\\n?|\\\`\`\``, 'g'), '').trim();
 
             const injectionResult = await injectContent(tab, cleanResult);
             if (!injectionResult?.[0]?.result) throw new Error('Failed to inject solution');
 
             apiResponse.textContent = cleanResult;
             finalStatus.textContent = 'Solved successfully!';
+
+            saveState();
         } catch (error) {
             console.error('Error:', error);
             finalStatus.textContent = 'Error: ' + error.message;
-            
-            // Keep stages visible to show the error
             stagesContainer.classList.add('visible');
             saveState();
+        } finally {
+            isSolving = false;
+            solveBtn.disabled = false;
+            solveBtn.textContent = 'Solve';
         }
-    });
+    };
+
+    // Attach the new event listener
+    solveBtn.addEventListener('click', window.solveBtnHandler);
+
+    // Function to get language-specific rules
+    const getLanguageRules = (language) => {
+        if (language === 'python') {
+            return [
+                "and mainly just give only one version of the code, never every give multiple codes",
+                "python code without comments or extra text",
+                "very easiest simple beginner version",
+                "no complex functions when not asked",
+                "normal python without AI syntaxes",
+            ];
+        } else if (language === 'java') {
+            return [
+                "and mainly just give only one version of the code, never every give multiple codes",
+                "java code without comments or extra text, very important without any extra text content or explanation",
+                "very easiest simple beginner version",
+                "no complex functions when not asked",
+                "normal java without AI syntaxes",
+                "include proper class structure and main method",
+                "the code must take input from the user using Scanner class only, no hardcoded values",
+                "Use only main class name as public class test"
+            ];
+        }
+        return []; // Fallback
+    };
+
+    // Function to get hint rules
+    const getHintRules = (language) => {
+        if (language === 'python') {
+            return [
+                "provide only hints with actual code syntaxes only",
+                "give hint which concept is used",
+                "give him work flow like first what to do",
+                "dont use any complex function unless asked and give response as simple plain text",
+                "keep it short and think he is very beginner of python so pls give him in very basic version"
+            ];
+        } else if (language === 'java') {
+            return [
+                "provide only hints with actual code syntaxes only",
+                "give hint which concept is used",
+                "give him work flow like first what to do",
+                "dont use any complex function unless asked and give response as simple plain text",
+                "keep it short and think he is very beginner of java so pls give him in very basic version",
+                "focus on object-oriented basics and syntax"
+            ];
+        }
+        return []; // Fallback
+    };
+
+    // Add event listener to save state on language change
+    languageSelect.addEventListener('change', saveState);
 });
