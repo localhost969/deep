@@ -9,16 +9,22 @@ Deep is a Chrome extension designed to solve **Tesselator** and **Telescope** pr
 - **Code Pasting Support:** Allows you to Paste your code even in telescope.
 - **Video Demonstration:** Check out the extension in action here:
 
-![](https://github.com/user-attachments/assets/cbe8bda2-198d-4489-8db4-a61e742baf5c)
+
+
+![GIF](https://github.com/user-attachments/assets/638dd702-c8da-45f9-b54b-fcca51af3efd)
+
+
+
+
 
 
 
 
 ## Installation 
-1. **[Download the extension ZIP](https://gif.89determined.workers.dev/deep)** and extract the files.
+1. Clone this repo.
 2. Open **Google Chrome** and go to `chrome://extensions/`.
 3. Enable **Developer Mode** (toggle at the top-right corner).
-4. Click **Load unpacked**, select the extracted folder named **deep**.
+4. Click **Load unpacked**, select the cloned folder.
 5. Done! The extension is now installed and ready to use.
    
 
