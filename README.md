@@ -3,6 +3,9 @@
 ## Overview
 Deep is a Chrome extension designed to solve **Tesselator** and **Telescope** problems instantly. It not only provides instant solutions but also offers hints and allows users to paste their own code . Whether you're stuck on a problem or need hints, Deep is your ultimate companion.
 
+https://github.com/user-attachments/assets/f10f8eb9-e27e-4ccb-942f-317162e9c5a2
+
+
 ## Features
 - **Instant Solutions:** Get answers to Tesselator and Telescope problems instantly.
 - **Smart Hints:** Receive helpful hints before seeing the full solution.
@@ -11,9 +14,10 @@ Deep is a Chrome extension designed to solve **Tesselator** and **Telescope** pr
 
 
 
-<video src="rec.mp4" muted autoplay loop controls style="max-width: 100%;">
-  Your browser does not support the video tag.
-</video>
+
+
+
+
 
 
 
