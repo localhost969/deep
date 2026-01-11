@@ -705,6 +705,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 "the code must take input from the user using Scanner class only, no hardcoded values",
                 "Use only main class name as public class test"
             ];
+        } else if (language === 'c') {
+            return [
+                "and mainly just give only one version of the code, never every give multiple codes",
+                "C code without comments or extra text, very important without any extra text content or explanation",
+                "very easiest simple beginner version",
+                "no complex functions when not asked",
+                "normal C without AI syntaxes",
+                "include necessary headers like stdio.h",
+                "the code must take input from the user using scanf, no hardcoded values",
+                "the main function must return 0"
+            ];
         }
         return []; // Fallback
     };
@@ -727,6 +738,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 "dont use any complex function unless asked and give response as simple plain text",
                 "keep it short and think he is very beginner of java so pls give him in very basic version",
                 "focus on object-oriented basics and syntax"
+            ];
+        } else if (language === 'c') {
+            return [
+                "provide only hints with actual code syntaxes only",
+                "give hint which concept is used",
+                "give him work flow like first what to do",
+                "dont use any complex function unless asked and give response as simple plain text",
+                "keep it short and think he is very beginner of C so pls give him in very basic version",
+                "focus on syntax, pointers (if relevant), and standard libraries"
             ];
         }
         return []; // Fallback
