@@ -11,11 +11,9 @@ Deep is a Chrome extension designed to solve **Tesselator** and **Telescope** pr
 
 
 
-
-
-https://github.com/user-attachments/assets/b6ae76d8-419a-4320-950b-eb21b4f29756
-
-
+<video src="rec.mp4" muted autoplay loop controls style="max-width: 100%;">
+  Your browser does not support the video tag.
+</video>
 
 
 

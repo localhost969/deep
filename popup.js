@@ -7,15 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiResponse = document.getElementById('apiResponse');
     const finalStatus = document.getElementById('finalStatus');
     const stagesContainer = document.querySelector('.stages');
-    const hintSection = document.querySelector('.hint-section');
-    const hintResponse = document.getElementById('hintResponse');
     const pasteFeedback = document.getElementById('pasteFeedback');
     const feedbackMessage = document.getElementById('feedbackMessage');
-
-    // New fullscreen hint elements
-    const fullscreenHintOverlay = document.getElementById('fullscreenHintOverlay');
-    const fullscreenHintContent = document.getElementById('fullscreenHintContent');
-    const closeFullscreenBtn = document.getElementById('closeFullscreenBtn');
 
     // New language selector element
     const languageSelect = document.getElementById('languageSelect');
@@ -35,14 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Restore paste input
                         if (storedState.pasteInput) {
                             pasteInput.value = storedState.pasteInput;
-                        }
-
-                        // Restore hint section
-                        if (storedState.hintVisible && storedState.hintContent) {
-                            hintSection.style.display = 'block';
-                            hintResponse.textContent = storedState.hintContent;
-                        } else {
-                            hintSection.style.display = 'none';
                         }
 
                         // Restore stages section
@@ -92,8 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentPageIdentifier) {
                 const state = {
                     pasteInput: pasteInput.value,
-                    hintVisible: hintSection.style.display === 'block',
-                    hintContent: hintResponse.textContent,
                     stagesVisible: stagesContainer.classList.contains('visible'),
                     extractedContent: extractedContent.textContent,
                     apiResponse: apiResponse.textContent,
@@ -145,7 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset popup to initial state
     const resetPopupState = () => {
         pasteInput.value = '';
-        hintSection.style.display = 'none';
         stagesContainer.classList.remove('visible');
         extractedContent.textContent = '';
         apiResponse.textContent = '';
@@ -253,35 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
             args: [content]
         });
     };
-
-    // Show fullscreen hint view
-    const showFullscreenHint = (content) => {
-        fullscreenHintContent.textContent = content;
-        fullscreenHintOverlay.style.display = 'flex';
-        document.body.style.overflow = 'hidden'; // Prevent scrolling when fullscreen is active
-    };
-
-    // Close fullscreen hint view
-    closeFullscreenBtn.addEventListener('click', () => {
-        fullscreenHintOverlay.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    });
-
-    // Close overlay when clicking outside the content
-    fullscreenHintOverlay.addEventListener('click', (e) => {
-        if (e.target.id === 'fullscreenHintOverlay') {
-            fullscreenHintOverlay.style.display = 'none';
-            document.body.style.overflow = 'auto'; // ensure scroll restored
-        }
-    });
-
-    // Initialize expand button functionality
-    const expandButton = document.querySelector('.expand-btn');
-    expandButton.addEventListener('click', () => {
-        const hintContent = document.getElementById('hintResponse').innerHTML;
-        document.getElementById('fullscreenHintContent').innerHTML = hintContent;
-        document.getElementById('fullscreenHintOverlay').style.display = 'flex';
-    });
 
     // Function to move cursor to end of editor - enhanced for document end
     const moveCursorToEnd = async () => {
@@ -455,6 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab) throw new Error('No active tab found');
 
+            hintBtn.disabled = true;
+            hintBtn.textContent = 'Getting hint...';
+
             const results = await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 func: () => {
@@ -490,13 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const content = results?.[0]?.result;
             if (!content) throw new Error('Could not extract code from editor');
 
-            // Hide stages section if visible
-            stagesContainer.classList.remove('visible');
-
-            // Show hint section and set loading state
-            hintSection.style.display = 'block';
-            hintResponse.textContent = 'Getting hint...';
-
             const payload = {
                 actualQuestion: content,
                 language: languageSelect.value,
@@ -513,23 +462,37 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hintApiResponse.ok) throw new Error('Failed to get hint');
             const hintResult = await hintApiResponse.text();
 
-            // Clean and display the hint
+            // Clean the hint
             const cleanHint = hintResult.replace(/```\w*\n?|```/g, '').trim();
-            hintResponse.textContent = cleanHint;
+            
+            // Comment out the hint based on language
+            let commentedHint = '';
+            const lang = languageSelect.value;
+            if (lang === 'python') {
+                commentedHint = '\n\n' + cleanHint.split('\n').map(line => `# ${line}`).join('\n');
+            } else if (lang === 'java' || lang === 'c') {
+                commentedHint = '\n\n/*\n' + cleanHint.split('\n').map(line => ` * ${line}`).join('\n') + '\n */';
+            } else {
+                commentedHint = '\n\n// ' + cleanHint;
+            }
 
-            // Automatically show fullscreen hint
-            document.getElementById('fullscreenHintContent').innerHTML = cleanHint;
-            document.getElementById('fullscreenHintOverlay').style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+            // Inject into editor
+            const injectionResult = await injectContent(tab, commentedHint);
+            
+            if (injectionResult?.[0]?.result) {
+                showPasteFeedback('Hint injected into editor!', true);
+            } else {
+                showPasteFeedback('Failed to inject hint', false);
+            }
 
-            // Save the updated state
             saveState();
 
         } catch (error) {
             console.error('Hint error:', error);
-            hintSection.style.display = 'block';
-            hintResponse.textContent = 'Error: ' + error.message;
-            saveState();
+            showPasteFeedback('Error: ' + error.message, false);
+        } finally {
+            hintBtn.disabled = false;
+            hintBtn.textContent = 'Hint';
         }
     });
 
@@ -594,8 +557,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isSolving = true;
         solveBtn.disabled = true;
         solveBtn.textContent = 'Solving...';
-
-        hintSection.style.display = 'none';
 
         try {
             stagesContainer.classList.add('visible');
@@ -724,6 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const getHintRules = (language) => {
         if (language === 'python') {
             return [
+                "Provide a detailed step-by-step algorithm and approach for the problem.",
                 "provide only hints with actual code syntaxes only",
                 "give hint which concept is used",
                 "give him work flow like first what to do",
@@ -732,6 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ];
         } else if (language === 'java') {
             return [
+                "Provide a detailed step-by-step algorithm and approach for the problem.",
                 "provide only hints with actual code syntaxes only",
                 "give hint which concept is used",
                 "give him work flow like first what to do",
@@ -741,6 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ];
         } else if (language === 'c') {
             return [
+                "Provide a detailed step-by-step algorithm and approach for the problem.",
                 "provide only hints with actual code syntaxes only",
                 "give hint which concept is used",
                 "give him work flow like first what to do",
